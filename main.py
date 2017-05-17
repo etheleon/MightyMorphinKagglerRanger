@@ -38,6 +38,74 @@ def create_feature_map(features):
 		i = i + 1
 	outfile.close()
 
+def process_data(data):
+	punctuation='["\'?,\.]' # I will replace all these punctuation with ''
+	abbr_dict={
+    "what's":"what is",
+    "what're":"what are",
+    "who's":"who is",
+    "who're":"who are",
+    "where's":"where is",
+    "where're":"where are",
+    "when's":"when is",
+    "when're":"when are",
+    "how's":"how is",
+    "how're":"how are",
+
+    "i'm":"i am",
+    "we're":"we are",
+    "you're":"you are",
+    "they're":"they are",
+    "it's":"it is",
+    "he's":"he is",
+    "she's":"she is",
+    "that's":"that is",
+    "there's":"there is",
+    "there're":"there are",
+
+    "i've":"i have",
+    "we've":"we have",
+    "you've":"you have",
+    "they've":"they have",
+    "who've":"who have",
+    "would've":"would have",
+    "not've":"not have",
+
+    "i'll":"i will",
+    "we'll":"we will",
+    "you'll":"you will",
+    "he'll":"he will",
+    "she'll":"she will",
+    "it'll":"it will",
+    "they'll":"they will",
+
+    "isn't":"is not",
+    "wasn't":"was not",
+    "aren't":"are not",
+    "weren't":"were not",
+    "can't":"can not",
+    "couldn't":"could not",
+    "don't":"do not",
+    "didn't":"did not",
+    "shouldn't":"should not",
+    "wouldn't":"would not",
+    "doesn't":"does not",
+    "haven't":"have not",
+    "hasn't":"has not",
+    "hadn't":"had not",
+    "won't":"will not",
+    punctuation:'',
+    '\s+':' ', # replace multi space with one single space
+	}
+	data['question1']=data['question1'].lower() # conver to lower case
+	data['question2']=data['question2'].lower()
+	
+	data['question1']=str(data['question1'])
+	data['question2']=str(data['question2'])
+	
+	data.replace(abbr_dict,regex=True,inplace=True)
+	return data
+
 def add_word_count(x, df, word):
 	x['q1_' + word] = df['question1'].apply(lambda x: (word in str(x).lower())*1)
 	x['q2_' + word] = df['question2'].apply(lambda x: (word in str(x).lower())*1)
@@ -110,8 +178,11 @@ def main():
 	stops = set(stopwords.words("english"))
 
 	def word_shares(row):
+		row = process_data(row)
 		q1_list = str(row['question1']).lower().split()
 		q1 = set(q1_list)
+
+		#Some basic text clearning
 		q1words = q1.difference(stops)
 		if len(q1words) == 0:
 			return '0:0:0:0:0:0:0:0'
@@ -121,6 +192,7 @@ def main():
 		q2words = q2.difference(stops)
 		if len(q2words) == 0:
 			return '0:0:0:0:0:0:0:0'
+
 
 		words_hamming = sum(1 for i in zip(q1_list, q2_list) if i[0]==i[1])/max(len(q1_list), len(q2_list))
 
@@ -155,6 +227,7 @@ def main():
 
 	x = pd.DataFrame()
 
+    #Features
 	x['word_match']       = df['word_shares'].apply(lambda x: float(x.split(':')[0]))
 	x['word_match_2root'] = np.sqrt(x['word_match'])
 	x['tfidf_word_match'] = df['word_shares'].apply(lambda x: float(x.split(':')[1]))
