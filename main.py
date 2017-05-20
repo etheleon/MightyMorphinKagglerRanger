@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-#!/usr/bin/env python
-
 import numpy as np
 import pandas as pd
 import xgboost as xgb
@@ -39,74 +37,6 @@ def create_feature_map(features):
 		outfile.write('{0}\t{1}\tq\n'.format(i, feat))
 		i = i + 1
 	outfile.close()
-
-def process_data(data):
-	punctuation='["\'?,\.]' # I will replace all these punctuation with ''
-	abbr_dict={
-    "what's":"what is",
-    "what're":"what are",
-    "who's":"who is",
-    "who're":"who are",
-    "where's":"where is",
-    "where're":"where are",
-    "when's":"when is",
-    "when're":"when are",
-    "how's":"how is",
-    "how're":"how are",
-
-    "i'm":"i am",
-    "we're":"we are",
-    "you're":"you are",
-    "they're":"they are",
-    "it's":"it is",
-    "he's":"he is",
-    "she's":"she is",
-    "that's":"that is",
-    "there's":"there is",
-    "there're":"there are",
-
-    "i've":"i have",
-    "we've":"we have",
-    "you've":"you have",
-    "they've":"they have",
-    "who've":"who have",
-    "would've":"would have",
-    "not've":"not have",
-
-    "i'll":"i will",
-    "we'll":"we will",
-    "you'll":"you will",
-    "he'll":"he will",
-    "she'll":"she will",
-    "it'll":"it will",
-    "they'll":"they will",
-
-    "isn't":"is not",
-    "wasn't":"was not",
-    "aren't":"are not",
-    "weren't":"were not",
-    "can't":"can not",
-    "couldn't":"could not",
-    "don't":"do not",
-    "didn't":"did not",
-    "shouldn't":"should not",
-    "wouldn't":"would not",
-    "doesn't":"does not",
-    "haven't":"have not",
-    "hasn't":"has not",
-    "hadn't":"had not",
-    "won't":"will not",
-    punctuation:'',
-    '\s+':' ', # replace multi space with one single space
-	}
-	data['question1']=data['question1'].lower() # conver to lower case
-	data['question2']=data['question2'].lower()
-	
-	data['question1']=str(data['question1'])
-	data['question2']=str(data['question2'])
-	
-	data.replace(abbr_dict,regex=True,inplace=True)
-	return data
 
 def add_word_count(x, df, word):
 	x['q1_' + word] = df['question1'].apply(lambda x: (word in str(x).lower())*1)
@@ -180,7 +110,6 @@ def main():
 	stops = set(stopwords.words("english"))
 
 	def word_shares(row):
-		row = process_data(row)
 		q1_list = str(row['question1']).lower().split()
 		q1 = set(q1_list)
 
@@ -222,6 +151,7 @@ def main():
 			R2gram = 0
 		else:
 			R2gram = len(shared_2gram) / (len(q1_2gram) + len(q2_2gram))
+
 		return '{}:{}:{}:{}:{}:{}:{}:{}'.format(R1, R2, len(shared_words), R31, R32, R2gram, Rcosine, words_hamming)
 
 	df = pd.concat([df_train, df_test])
@@ -262,11 +192,12 @@ def main():
 	x['avg_world_len2'] = x['len_char_q2'] / x['len_word_q2']
 	x['diff_avg_word'] = x['avg_world_len1'] - x['avg_world_len2']
 
-	x['q1_hash'] = df['question1'].map(questions_dict())
-	x['q2_hash'] = df['question2'].map(questions_dict())
+	#Using q1_hash can lead to overfitting
+	q1_hash = df['question1'].map(questions_dict())
+	q2_hash = df['question2'].map(questions_dict())
 
-	q1_vc = x.q1_hash.value_counts().to_dict()
-	q2_vc = x.q2_hash.value_counts().to_dict()
+	q1_vc = q1_hash.value_counts().to_dict()
+	q2_vc = q2_hash.value_counts().to_dict()
 
 	def try_apply_dict(x,dict_to_apply):
 	    try:
@@ -275,8 +206,8 @@ def main():
 	        return 0
 	
 	#map to frequency space
-	x['q1_freq'] = x['q1_hash'].map(lambda x: try_apply_dict(x,q1_vc) + try_apply_dict(x,q2_vc))
-	x['q2_freq'] = x['q2_hash'].map(lambda x: try_apply_dict(x,q1_vc) + try_apply_dict(x,q2_vc))
+	x['q1_freq'] = q1_hash.map(lambda x: try_apply_dict(x,q1_vc) + try_apply_dict(x,q2_vc))
+	x['q2_freq'] = q2_hash.map(lambda x: try_apply_dict(x,q1_vc) + try_apply_dict(x,q2_vc))
 	
 	x['exactly_same'] = (df['question1'] == df['question2']).astype(int)
 	x['duplicated'] = df.duplicated(['question1','question2']).astype(int)
