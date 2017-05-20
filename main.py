@@ -99,12 +99,12 @@ def process_data(data):
     punctuation:'',
     '\s+':' ', # replace multi space with one single space
 	}
-	data['question1']=data['question1'].lower() # conver to lower case
-	data['question2']=data['question2'].lower()
-	
+	data['question1']=str(data['question1']).lower() # conver to lower case
+	data['question2']=str(data['question2']).lower()
+
 	data['question1']=str(data['question1'])
 	data['question2']=str(data['question2'])
-	
+
 	data.replace(abbr_dict,regex=True,inplace=True)
 	return data
 
@@ -131,7 +131,7 @@ def main():
 	#	df_test['question1'] = df_test['question1'].apply(lambda x:str(x).replace("?",""))
 	#	df_test['question2'] = df_test['question2'].apply(lambda x:str(x).replace("?",""))
 	###
-	###	
+	###
 	#	df_train['question1'] = df_train['question1'].apply(lambda x:str(x).replace(".",""))
 	#	df_train['question2'] = df_train['question2'].apply(lambda x:str(x).replace(".",""))
 	#	df_test['question1'] = df_test['question1'].apply(lambda x:str(x).replace(".",""))
@@ -142,33 +142,33 @@ def main():
 	#	df_test['question1'] = df_test['question1'].apply(lambda x:str(x).replace(",",""))
 	#	df_test['question2'] = df_test['question2'].apply(lambda x:str(x).replace(",",""))
 	###
-	
+
 	print("Original data: X_train: {}, X_test: {}".format(df_train.shape, df_test.shape))
 
 	print("Features processing, be patient...")
 
 	# If a word appears only once, we ignore it completely (likely a typo)
 	# Epsilon defines a smoothing constant, which makes the effect of extremely rare words smaller
-	
+
 	def questions_dict():
           df1 = df_train[['question1']].copy()
           df2 = df_train[['question2']].copy()
           df1_test = df_test[['question1']].copy()
           df2_test = df_test[['question2']].copy()
-          
+
           df2.rename(columns = {'question2':'question1'},inplace=True)
           df2_test.rename(columns = {'question2':'question1'},inplace=True)
-            
+
           train_questions = df1.append(df2)
           train_questions = train_questions.append(df1_test)
           train_questions = train_questions.append(df2_test)
           #train_questions.drop_duplicates(subset = ['qid1'],inplace=True)
           train_questions.drop_duplicates(subset = ['question1'],inplace=True)
-        
+
           train_questions.reset_index(inplace=True,drop=True)
           questions_dict = pd.Series(train_questions.index.values,index=train_questions.question1.values).to_dict()
           return questions_dict
-		
+
 	def get_weight(count, eps=10000, min_count=2):
 		return 0 if count < min_count else 1 / (count + eps)
 
@@ -188,7 +188,7 @@ def main():
 		q1words = q1.difference(stops)
 		if len(q1words) == 0:
 			return '0:0:0:0:0:0:0:0'
-        
+
 		q2_list = str(row['question2']).lower().split()
 		q2 = set(q2_list)
 		q2words = q2.difference(stops)
@@ -211,7 +211,7 @@ def main():
 		q1_weights = [weights.get(w, 0) for w in q1words]
 		q2_weights = [weights.get(w, 0) for w in q2words]
 		total_weights = q1_weights + q1_weights
-		
+
 		R1 = np.sum(shared_weights) / np.sum(total_weights) #tfidf share
 		R2 = len(shared_words) / (len(q1words) + len(q2words) - len(shared_words)) #count share
 		R31 = len(q1stops) / len(q1words) #stops in q1
@@ -245,7 +245,7 @@ def main():
 	x['len_q1'] = df['question1'].apply(lambda x: len(str(x)))
 	x['len_q2'] = df['question2'].apply(lambda x: len(str(x)))
 	x['diff_len'] = x['len_q1'] - x['len_q2']
-	
+
 	x['caps_count_q1'] = df['question1'].apply(lambda x:sum(1 for i in str(x) if i.isupper()))
 	x['caps_count_q2'] = df['question2'].apply(lambda x:sum(1 for i in str(x) if i.isupper()))
 	x['diff_caps'] = x['caps_count_q1'] - x['caps_count_q2']
@@ -273,11 +273,11 @@ def main():
 	        return dict_to_apply[x]
 	    except KeyError:
 	        return 0
-	
+
 	#map to frequency space
 	x['q1_freq'] = x['q1_hash'].map(lambda x: try_apply_dict(x,q1_vc) + try_apply_dict(x,q2_vc))
 	x['q2_freq'] = x['q2_hash'].map(lambda x: try_apply_dict(x,q1_vc) + try_apply_dict(x,q2_vc))
-	
+
 	x['exactly_same'] = (df['question1'] == df['question2']).astype(int)
 	x['duplicated'] = df.duplicated(['question1','question2']).astype(int)
 	add_word_count(x, df,'how')
@@ -316,7 +316,7 @@ def main():
 		x_train = pd.concat([pos_train, neg_train])
 		y_train = (np.zeros(len(pos_train)) + 1).tolist() + np.zeros(len(neg_train)).tolist()
 		del pos_train, neg_train
-	
+
 	print("Training data: X_train: {}, Y_train: {}, X_test: {}".format(x_train.shape, len(y_train), x_test.shape))
 	clr = train_xgb(x_train, y_train, params)
 	preds = predict_xgb(clr, x_test)
